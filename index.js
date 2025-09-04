@@ -64,6 +64,9 @@
         // Images.
         this.images = {};
         this.imagesLoaded = 0;
+        
+        // Labubu character image
+        this.labubuImage = null;
 
         if (this.isDisabled()) {
             this.setupDisabledRunner();
@@ -297,12 +300,27 @@
                 this.spriteDef = Runner.spriteDefinition.LDPI;
             }
 
+            // Load labubu character image
+            this.labubuImage = new Image();
+            this.labubuImage.onload = this.onLabubuImageLoaded.bind(this);
+            this.labubuImage.src = 'assets/labubu.png';
+
             if (Runner.imageSprite.complete) {
-                this.init();
+                this.checkAllImagesLoaded();
             } else {
                 // If the images are not yet loaded, add a listener.
                 Runner.imageSprite.addEventListener(Runner.events.LOAD,
-                    this.init.bind(this));
+                    this.checkAllImagesLoaded.bind(this));
+            }
+        },
+
+        onLabubuImageLoaded: function () {
+            this.checkAllImagesLoaded();
+        },
+
+        checkAllImagesLoaded: function () {
+            if (Runner.imageSprite.complete && this.labubuImage.complete) {
+                this.init();
             }
         },
 
@@ -379,7 +397,7 @@
                 this.spriteDef.TEXT_SPRITE, this.dimensions.WIDTH);
 
             // Draw t-rex
-            this.tRex = new Trex(this.canvas, this.spriteDef.TREX);
+            this.tRex = new Trex(this.canvas, this.spriteDef.TREX, this);
 
             this.outerContainerEl.appendChild(this.containerEl);
 
@@ -1522,12 +1540,14 @@
      * T-rex game character.
      * @param {HTMLCanvas} canvas
      * @param {Object} spritePos Positioning within image sprite.
+     * @param {Object} runner Runner instance for accessing labubu image.
      * @constructor
      */
-    function Trex(canvas, spritePos) {
+    function Trex(canvas, spritePos, runner) {
         this.canvas = canvas;
         this.canvasCtx = canvas.getContext('2d');
         this.spritePos = spritePos;
+        this.runner = runner;
         this.xPos = 0;
         this.yPos = 0;
         // Position when on the ground.
@@ -1719,39 +1739,63 @@
          * @param {number} y
          */
         draw: function (x, y) {
-            var sourceX = x;
-            var sourceY = y;
-            var sourceWidth = this.ducking && this.status != Trex.status.CRASHED ?
-                this.config.WIDTH_DUCK : this.config.WIDTH;
-            var sourceHeight = this.config.HEIGHT;
+            // Use labubu image if available, otherwise fall back to sprite sheet
+            if (this.runner.labubuImage && this.runner.labubuImage.complete) {
+                var drawWidth = this.ducking && this.status != Trex.status.CRASHED ?
+                    this.config.WIDTH_DUCK : this.config.WIDTH;
+                var drawHeight = this.config.HEIGHT;
 
-            if (IS_HIDPI) {
-                sourceX *= 2;
-                sourceY *= 2;
-                sourceWidth *= 2;
-                sourceHeight *= 2;
-            }
-
-            // Adjustments for sprite sheet position.
-            sourceX += this.spritePos.x;
-            sourceY += this.spritePos.y;
-
-            // Ducking.
-            if (this.ducking && this.status != Trex.status.CRASHED) {
-                this.canvasCtx.drawImage(Runner.imageSprite, sourceX, sourceY,
-                    sourceWidth, sourceHeight,
-                    this.xPos, this.yPos,
-                    this.config.WIDTH_DUCK, this.config.HEIGHT);
-            } else {
-                // Crashed whilst ducking. Trex is standing up so needs adjustment.
-                if (this.ducking && this.status == Trex.status.CRASHED) {
-                    this.xPos++;
+                // Ducking.
+                if (this.ducking && this.status != Trex.status.CRASHED) {
+                    this.canvasCtx.drawImage(this.runner.labubuImage,
+                        this.xPos, this.yPos,
+                        drawWidth, drawHeight);
+                } else {
+                    // Crashed whilst ducking. Trex is standing up so needs adjustment.
+                    if (this.ducking && this.status == Trex.status.CRASHED) {
+                        this.xPos++;
+                    }
+                    // Standing / running
+                    this.canvasCtx.drawImage(this.runner.labubuImage,
+                        this.xPos, this.yPos,
+                        drawWidth, drawHeight);
                 }
-                // Standing / running
-                this.canvasCtx.drawImage(Runner.imageSprite, sourceX, sourceY,
-                    sourceWidth, sourceHeight,
-                    this.xPos, this.yPos,
-                    this.config.WIDTH, this.config.HEIGHT);
+            } else {
+                // Fallback to original sprite sheet method
+                var sourceX = x;
+                var sourceY = y;
+                var sourceWidth = this.ducking && this.status != Trex.status.CRASHED ?
+                    this.config.WIDTH_DUCK : this.config.WIDTH;
+                var sourceHeight = this.config.HEIGHT;
+
+                if (IS_HIDPI) {
+                    sourceX *= 2;
+                    sourceY *= 2;
+                    sourceWidth *= 2;
+                    sourceHeight *= 2;
+                }
+
+                // Adjustments for sprite sheet position.
+                sourceX += this.spritePos.x;
+                sourceY += this.spritePos.y;
+
+                // Ducking.
+                if (this.ducking && this.status != Trex.status.CRASHED) {
+                    this.canvasCtx.drawImage(Runner.imageSprite, sourceX, sourceY,
+                        sourceWidth, sourceHeight,
+                        this.xPos, this.yPos,
+                        this.config.WIDTH_DUCK, this.config.HEIGHT);
+                } else {
+                    // Crashed whilst ducking. Trex is standing up so needs adjustment.
+                    if (this.ducking && this.status == Trex.status.CRASHED) {
+                        this.xPos++;
+                    }
+                    // Standing / running
+                    this.canvasCtx.drawImage(Runner.imageSprite, sourceX, sourceY,
+                        sourceWidth, sourceHeight,
+                        this.xPos, this.yPos,
+                        this.config.WIDTH, this.config.HEIGHT);
+                }
             }
         },
 
